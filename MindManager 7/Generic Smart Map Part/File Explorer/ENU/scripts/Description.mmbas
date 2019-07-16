@@ -1,0 +1,8 @@
+Option Explicit
+'#Uses "language.MMBas" ' language file placed by installation script
+Sub Main
+    'Add an appropriate description here
+    MsgBox(locDescription)
+    ' Or open a web site with according description or a map
+    ' Shell("explorer.exe http://www.mindjet.com/", vbNormalFocus)
+End Sub

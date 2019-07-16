@@ -1,0 +1,47 @@
+<html>
+
+    <head>
+
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css\oob.css">
+        
+        <script language=javascript>
+            var page = new Array();
+            var buttonText = new Array();
+            var contentFrame = parent.frames("ContentFrame");
+            var globalFrame = parent.frames("GlobalFrame");
+        </script>
+        
+        <script language=javascript src="js\oobLocalizedContent.js"></script>
+        
+    </head>
+    
+    <body>
+    
+        <h1>Notes</h1>
+        <p>Topics are great for ideas and phrases, but what if you have a lot to say?</p>  
+        <p>You can use the Notes window to include a lot of information without having to add more subtopics.</p> 
+        <h2>To add notes:</h2>
+        <ol>
+            <li>Select Widget A.</li>
+            <li>Click the <span class="ctrl">Notes</span> <img src="images\notes.png" /> button on the Topic Elements group of the Home tab.</li>
+            <li>The Notes window will open from the right.</li>
+            <li>Type into the Notes window.</li>
+            <li>To close the Notes window, click <span class="ctrl">Close</span> in the upper right corner.</li>
+        </ol>
+	    
+	    <div id="buttons">
+            <input id="back" type="button" accesskey="b" value="" onClick=history.back()>
+	        <input id="next" type="button" accesskey="n" value="" onClick="contentFrame.location='oobExport.htm'">
+	    </div>
+	    
+	    <script language=javascript>
+            back.value = buttonText.back;
+            next.value = buttonText.next; 
+            next.focus();               
+        </script>
+    
+    </body>
+
+</html>

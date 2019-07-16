@@ -1,0 +1,37 @@
+<html>
+
+    <head>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css\oob.css">
+ 
+        <script language=javascript>
+            var page = new Array();
+            var buttonText = new Array();
+            var contentFrame = parent.frames("ContentFrame");
+        </script>
+        
+        <script language=javascript src="js\oobLocalizedContent.js"></script>
+               
+    </head>
+    
+    <body>
+    
+        <h1>What Is MindManager Mapping?</h1>
+        <p>MindManager mapping is a powerful technique for quickly generating, capturing, and organizing ideas, tasks, and activities.</p>
+        <p>Let's get started.</p>
+       
+        <div id="buttons">
+	        <input id="back" type="button" accesskey="b" value="" onclick=history.back()>
+            <input id="next" type="button" accesskey="n" value="" onClick="contentFrame.location='oobMeetingName.htm'">
+        </div>
+    	    
+	    <script language=javascript>
+            back.value = buttonText.back;
+            next.value = buttonText.next;
+            next.focus();
+        </script>
+        
+    </body>
+
+</html>

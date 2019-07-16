@@ -1,0 +1,330 @@
+'#Reference {50A7E9B0-70EF-11D1-B75A-00A0C90564FE}#1.0#0#C:\WINNT\system32\shell32.dll#Microsoft Shell Controls And Automation
+'#Reference {420B2830-E718-11CF-893D-00A0C9054228}#1.0#0#C:\WINNT\System32\scrrun.dll#Microsoft Scripting Runtime
+' Converts MindManager 2002 *.mmp maps into the *.mmap file format.
+' Copyright (c) 2003-2007 Mindjet LLC
+
+Option Explicit
+'
+'#Uses "language.MMBas" ' language file placed by installation script
+Global fso As Scripting.FileSystemObject
+Global mapPaths() As String
+Global mapCount As Integer
+Global doRecursion As Boolean
+Global convertTemplates As Boolean
+Global conversionPath As String
+
+Const MapPathsLength = 50
+
+
+Sub Main
+
+	ReDim mapPaths(MapPathsLength - 1)
+	mapCount = 0
+	Set fso = CreateObject("Scripting.FileSystemObject")
+
+	doRecursion = False
+	convertTemplates = False
+
+	Begin Dialog UserDialog 400,119,ScriptTitle,.DialogFunction ' %GRID:10,7,1,1
+		CancelButton 290,91,100,21
+		Text 20,14,260,21,BrowseFolderText,.BrowseFolderText
+		Text 20,49,260,63,BrowseFileText,.BrowseFileText
+		PushButton 290,14,100,21,BrowseFolderButton,.BrowseFolder
+		PushButton 290,49,100,21,BrowseFileButton,.BrowseFile
+	End Dialog
+	Dim dlg As UserDialog
+	If Dialog(dlg) <> 0 And (fso.FileExists(conversionPath) Or fso.FolderExists(conversionPath)) Then
+		' show options dialog
+		Dim iteratesubs
+		Begin Dialog UserDialog 390,91,OptionsDialogTitle ' %GRID:10,7,1,1
+			CheckBox 30,14,320,21,DoRecursionOption,.IterateSubs
+			CheckBox 30,35,330,21,ConvertTemplatesOption,.IterateTemplates
+			OKButton 170,63,100,21
+			CancelButton 280,63,100,21
+		End Dialog
+		Dim dlgOptions As UserDialog
+
+		If Dialog(dlgOptions) Then 'OK
+			doRecursion = dlgOptions.IterateSubs
+			convertTemplates = dlgOptions.IterateTemplates
+
+			If fso.FolderExists(conversionPath) Then
+				' convert the selected folder
+				ProcessFolder(conversionPath)
+			Else
+				' convert folder list
+				ConvertMaps(conversionPath)
+			End If
+
+			' update hyperlinks in MM5 maps and archive 2002 maps
+			Dim i As Integer
+			For i = 0 To mapCount - 1
+				UpdateHyperlinks(mapPaths(i))
+			Next i
+
+			MsgBox(FinishedText & CStr(mapCount), vbOkOnly, ScriptTitle)
+			End If
+	End If
+
+	Set fso = Nothing
+End Sub
+
+Sub ConvertMaps(ByVal fileListPath As String)
+	' read list of files
+	Dim fileText As Scripting.TextStream
+
+	' use TristateUseDefault instead of TristateFalse so that unicode text files can be read
+    Set fileText = fso.OpenTextFile(fileListPath, ForReading, False, TristateUseDefault)
+
+    While Not fileText.AtEndOfStream
+    	Dim currentPath As String
+    	Dim isCurrentPathPre5 As Boolean
+    	currentPath = fileText.ReadLine()
+		currentPath = Trim(currentPath)
+		isCurrentPathPre5 = IsPre5Map(currentPath)
+
+		' process all maps in folder
+		If fso.FolderExists(currentPath) Then
+			ProcessFolder(currentPath)
+
+		' convert map (or update its hyperlinks if this is the second pass)
+		ElseIf fso.FileExists(currentPath) And isCurrentPathPre5 Then
+			ConvertMap(currentPath)
+		End If
+	Wend
+End Sub
+
+Sub ProcessFolder(ByVal folderPath As String)
+	' assure trailing slash
+	If (Right(folderPath, 1) <> "\" And Right(folderPath, 1) <> "/") Then
+		folderPath = folderPath & "\"
+	End If
+
+	Dim currentFile As Scripting.File
+	Dim currentFolder As Scripting.Folder
+	Dim currentSubFolder As Scripting.Folder
+	Set currentFolder = fso.GetFolder(folderPath)
+
+	' process map files
+	For Each currentFile In currentFolder.Files
+		Dim currentFilePath As String
+		currentFilePath = currentFile.Path
+		If IsPre5Map(currentFilePath) Then
+			ConvertMap(currentFilePath)
+		End If
+    Next
+
+	Set currentFile = Nothing
+
+	' do recursion on folders?
+	If doRecursion Then
+		For Each currentSubFolder In currentFolder.SubFolders
+			Dim currentSubFolderPath As String
+			currentSubFolderPath = currentSubFolder.Path
+			ProcessFolder(currentSubFolderPath)
+	    Next
+	End If
+
+	Set currentFolder = Nothing
+	Set currentSubFolder = Nothing
+End Sub
+
+Sub ConvertMap(ByVal mapPath As String)
+	On Error GoTo QuitOnException
+
+	' check if map is already converted
+	Dim mm5Filename As String
+	mm5Filename = GetMM5Filename(mapPath)
+	If Not fso.FileExists(mm5Filename) Then
+
+		' convert to MM5 map
+		Dim currentDocument As Document
+		Set currentDocument = Documents.Open(mapPath, "", False)
+
+		' put correct relative path in relative hyperlinks
+		Dim currentTopic As Topic
+		For Each currentTopic In currentDocument.Range(mmRangeAllTopics, False)
+        	If currentTopic.HasHyperlink Then
+        		If currentTopic.Hyperlink.Address <> "" And Not currentTopic.Hyperlink.Absolute Then
+
+					Dim b As Boolean
+					Dim hyperlinkPath As String
+
+					' get the REAL absolute path based on the 2002 path
+					' (and not the default folder for unsaved documents)
+					hyperlinkPath = Trim(currentTopic.Hyperlink.Address)
+					hyperlinkPath = fso.GetParentFolderName(mapPath) & "\" & hyperlinkPath
+
+					' update the relative path
+					currentTopic.Hyperlink.Address = hyperlinkPath
+					currentTopic.Hyperlink.Absolute = False
+				End If
+			End If
+		Next
+
+		Set currentTopic = Nothing
+
+		' Save As updates relative hyperlinks
+		currentDocument.SaveAs(mm5Filename)
+		currentDocument.Close
+		Set currentDocument = Nothing
+
+		' add to list of converted maps
+		If mapCount > UBound(mapPaths) Then
+			' grow list
+			ReDim Preserve mapPaths(UBound(mapPaths) + MapPathsLength)
+		End If
+
+		mapPaths(mapCount) = mapPath
+		mapCount = mapCount + 1
+	End If
+
+QuitOnException:
+End Sub
+
+Sub UpdateHyperlinks(ByVal mapPath As String)
+	On Error GoTo QuitOnException
+
+	' check if map was successfully converted
+	Dim mm5Filename As String
+	mm5Filename = GetMM5Filename(mapPath)
+	If fso.FileExists(mm5Filename) Then
+		Dim currentDocument As Document
+		Set currentDocument = Documents.Open(mm5Filename, "", False)
+		Dim currentTopic As Topic
+
+		For Each currentTopic In currentDocument.Range(mmRangeAllTopics, False)
+        	If currentTopic.HasHyperlink Then
+        		If currentTopic.Hyperlink.Address <> "" Then
+
+					Dim b As Boolean
+					Dim hyperlinkPath As String
+					Dim mm5HyperlinkPath As String
+		        	b = currentTopic.Hyperlink.Absolute
+
+					' get absolute path
+				    currentTopic.Hyperlink.Absolute = True
+				    hyperlinkPath = Trim(currentTopic.Hyperlink.Address)
+
+				    ' get path of converted document
+				    mm5HyperlinkPath = GetMM5Filename(hyperlinkPath)
+
+				    ' if this is a hyperlink or bookmark to a pre5 map that has been converted,
+				    ' update the hyperlink
+				    If IsPre5Map(hyperlinkPath) And fso.FileExists(mm5HyperlinkPath) Then
+						currentTopic.Hyperlink.Address = mm5HyperlinkPath
+					End If
+
+			    	currentTopic.Hyperlink.Absolute = b
+			    End If
+			End If
+
+		Next
+
+		Set currentTopic = Nothing
+
+		currentDocument.Save
+		currentDocument.Close
+		Set currentDocument = Nothing
+
+		' check if archive folder exists
+		If fso.FileExists(mapPath) Then ' double check that original file exists
+			Dim destinationFolder As String
+			destinationFolder = GetArchiveFolder(mapPath)
+			If Not fso.FolderExists(destinationFolder) Then
+				fso.CreateFolder(destinationFolder)
+			End If
+
+			' move original map to archive folder
+			Dim destinationPath As String
+			destinationPath = destinationFolder & fso.GetFileName(mapPath)
+			fso.MoveFile(mapPath, destinationPath)
+		End If
+
+	End If
+
+QuitOnException:
+End Sub
+
+Function IsPre5Map(ByVal mapPath As String)
+	Dim ext As String
+	ext = Right(mapPath, Len(mapPath) - InStrRev(mapPath, "."))
+	If UCase(ext) = "MMP" Then
+		IsPre5Map = True
+	ElseIf UCase(ext) = "MMPT" And convertTemplates Then
+		IsPre5Map = True
+	Else
+		IsPre5Map = False
+	End If
+End Function
+
+Function GetMM5Filename(ByVal pre5Filename As String)
+	Dim ext As String
+	ext = Right(pre5Filename, Len(pre5Filename) - InStrRev(pre5Filename, "."))
+	If UCase(ext) = "MMP" Then
+		ext = "mmap
+	ElseIf UCase(ext) = "MMPT" And convertTemplates Then
+		ext = "mmat
+	End If
+
+	pre5Filename = Left(pre5Filename, InStrRev(pre5Filename, "."))
+	GetMM5Filename = pre5Filename & ext
+End Function
+
+Function GetArchiveFolder(ByVal pre5Filename As String)
+	Dim parentFolder As String
+	parentFolder = fso.GetParentFolderName(pre5Filename)
+	GetArchiveFolder = parentFolder & "\" & ArchiveFolderName & "\"
+End Function
+
+Private Function DialogFunction(DlgItem$, Action%, SuppValue&) As Boolean
+	On Error GoTo QuitOnException
+	If Action = 2 Then
+		If DlgItem = "BrowseFolder" Or DlgItem = "BrowseFile" Then
+			If DlgItem = "BrowseFolder" Then
+
+				Dim folderDialog As FileDialog
+				Set folderDialog = FileDialog(mmFileDialogFolderPicker)
+
+				folderDialog.Title = BrowseFolderDialogText
+				folderDialog.Execute
+				If folderDialog.Show Then
+				    conversionPath = folderDialog.Item
+				Else
+				    conversionPath = ""
+				End If
+
+			Else
+				Dim browseFileDialog As FileDialog
+				Set browseFileDialog = FileDialog(mmFileDialogFilePicker)
+
+				browseFileDialog.Reset
+				browseFileDialog.InitialFileName = MacroDir
+				browseFileDialog.Title = OpenDialogTitle
+				browseFileDialog.PreviewPane = False
+				browseFileDialog.AllowMultiSelect = False
+
+				' Remove all filters
+				Dim filterCount As Long
+				Dim i_filter As Long
+				filterCount = browseFileDialog.Filters.Count
+				For i_filter = 1 To filterCount - 1
+					browseFileDialog.Filters.Delete 2
+				Next i_filter
+
+				If browseFileDialog.Show Then
+				    conversionPath = browseFileDialog.Item
+				Else
+				    conversionPath = ""
+				End If
+			End If
+
+			' check if file/folder dialog canceled
+			If conversionPath = "" Then
+				DialogFunction = True
+			End If
+		End If
+	End If
+
+	QuitOnException:
+End Function

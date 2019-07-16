@@ -1,0 +1,11 @@
+buttonText.next="Next >>";
+buttonText.back="<< Back";
+buttonText.yes="Yes";
+buttonText.no="No";
+buttonText.learningCenter="Learning Center";
+buttonText.closeButton="Close";
+buttonText.restart="Restart";
+page.meetingName="Type meeting name here";
+page.meetingDate="Type today's date here";
+page.leaderName="Type your name here";
+page.attendeeName="Type attendee here";

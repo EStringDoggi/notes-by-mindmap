@@ -1,0 +1,336 @@
+
+' MindManager macro
+
+' NAME: File Explorer Smart Map Part
+
+' Constants
+Const s_AppName = "File Explorer Map Part"
+Const s_AppVer = "v10"
+Const filePrefix = ""       ' added to every file topic, customize if needed
+Const folderPrefix = ""     ' added to every folder topic, customize if needed
+
+' Globals
+Global errMsg As String
+Global mapPath As String ' path to start mapping
+Global mapAttr As Integer ' file attributes
+Global title As Topic
+Global wkgTopic As Topic
+Global Depth As Integer
+Global delCount, fileCount, folderCount As Integer
+Global fileURL As String
+Global skipList ' list of filetypes which are not mapped
+Global fso
+Global showFiles As Boolean
+Global showFolders As Boolean
+Global maxDepth As Integer
+
+' Windows API
+' none
+
+'#Uses "language.MMBas" ' language file placed by installation script
+
+Sub Main
+	Dim userSel As Integer
+
+    ' Customizable settings
+	skipList = Array(".exe", ".com", ".bat", ".cmd", ".dll", ".ini", ".sys", ".tmp", ".isu", ".bak", ".sav", " ") ' terminate with " "
+
+	' Initialize
+	fileURL = "File://" ' file URL which could appear on hyperlinks
+	errMsg = "" ' no user error
+	fileCount = 0
+	folderCount = 0
+	delCount = 0
+
+'	On Error GoTo QuitOnException
+    Dim folderTopic As Topic
+
+    Set folderTopic = ActiveDocument.Selection.PrimaryTopic
+
+	' is topic selected (must be)
+	If (folderTopic Is Nothing) Then
+	   GoTo QuitOnException
+	End If
+
+	If folderTopic.IsFloatingTopic Then
+       errMsg = "Map Part cannot be added as floating topic."
+	   GoTo QuitOnException
+	End If
+
+    Set wkgTopic = folderTopic.ParentTopic
+
+	' check if the map part was moved to a relationship
+	If (wkgTopic Is Nothing) Then
+	   errMsg = "Map Part cannot be added to relationship directly"
+	   GoTo QuitOnException
+	End If
+
+
+	' Does Topic contain a hyperlink?
+	If wkgTopic.HasHyperlink = False Then
+	   errMsg = "Topic does not have a Hyperlink."
+	   GoTo QuitOnException
+	End If
+
+
+	Set fso = CreateObject("Scripting.FileSystemObject")
+
+    Dim b As Boolean
+    b = wkgTopic.Hyperlink.Absolute
+
+    If  wkgTopic.Hyperlink.Address = "" Then
+    	' If there is a GUID and no address then this is a local topic hyperlink
+    	If wkgTopic.Hyperlink.TopicBookmarkGuid <> "" Then
+    		' This map part does not support local topic hyperlinks
+    		Exit Sub
+    	End If
+
+	    If wkgTopic.Hyperlink.TopicBookmarkName <> "" Then
+	    	' This map part does not support local topic hyperlinks
+	    	Exit Sub
+	    End If
+
+    End If 
+
+    wkgTopic.Hyperlink.Absolute = True
+    mapPath = Trim(wkgTopic.Hyperlink.Address )
+    wkgTopic.Hyperlink.Absolute = b
+    'MsgBox mapPath
+
+
+
+	' strip fileURL if present
+	If UCase(Left(mapPath, Len(fileURL))) = UCase(fileURL) Then
+		mapPath = Right(mapPath, Len(mapPath) - Len(fileURL))
+    End If
+
+	If (Not fso.FileExists(mapPath)) And (Not fso.FolderExists(mapPath)) Then
+	  GoTo QuitOnException
+	End If
+
+	' replace this with a search from this folder
+	If fso.FileExists(mapPath) Then ' this is a file
+		mapPath = stripFile(mapPath)           ' take file off
+	End If
+
+
+    showFiles   = False
+    showFolders = False
+    Dim t As String
+    Dim attr As CustomAttributes
+    Set attr = folderTopic.Attributes("http://schemas.mindjet.com/MindManager/GSMP/2003")
+    t = attr.GetAttributeValue("Type")
+
+    If t = "Files" Then
+       showFiles = True
+       maxDepth = 1
+    ElseIf t = "Folders" Then
+       showFolders = True
+       maxDepth = 2
+    ElseIf t = "FilesAndFolders" Then
+       showFiles = True
+       showFolders = True
+       maxDepth = 2
+    End If
+
+	' Everything is OK, ready to go
+	Call recurMap(folderTopic, mapPath, 0) ' map files and folders
+	folderTopic.SetLevelOfDetail(1)
+
+	Set wkgTopic = Nothing
+	Set title = Nothing
+	Set fso = Nothing
+	Exit Sub
+
+
+'#######################################################################
+' error handling
+'#######################################################################
+QuitOnException:
+	If errMsg = "" Then ' system error
+		errMsg = "System Error " & Hex(Err.Number) & ":" & vbCrLf & Err.Description
+	End If
+
+	'MsgBox(errMsg, vbExclamation, s_AppName)
+	Err.Clear
+
+End Sub
+
+
+Sub recurMap(ByVal b1 As Topic, ByVal curPath As String, ByVal Depth As Integer)
+' Assuming the current position is a folder, maps all files and
+' subfolders. Since the Basic DIR function is single-threaded,
+' each folder must first be explored in its entirety, plotted to
+' Topics and then sub-folders must be individually explored.
+' Recursing at the point of folder detection will not work.
+
+Dim i, j As Integer
+Dim b2 As Topic
+Dim b1list As Topics
+
+' if the current URL is a file then we can skip it, as it is
+' already plotted. Do not forget this is is a recursive routine.
+	curPath = Trim(curPath)
+	' strip fileURL if present
+	If UCase(Left(curPath, Len(fileURL))) = UCase(fileURL) Then
+		curPath = Right(curPath, Len(curPath) - Len(fileURL))
+	End If
+
+	' patch up pathname if necessary
+	If Right(curPath, 1) <> "\" Then
+		curPath = curPath + "\"
+	End If
+
+	If (Not fso.FolderExists(curPath)) Then
+	  Exit Sub ' nothing more to do here
+	End If
+
+	' throw away any existing sub-Topics
+	Set b1list = b1.SubTopics( False )
+	If b1list.Count > 0  Then
+		b1.SetLevelOfDetail(1) ' Show deletions in progress
+	End If
+
+	For i = b1list.Count To 1 Step -1 ' 0 -inclusive
+		Set b2 = b1list.Item(i)
+		b2.Delete
+		Set b2 = Nothing
+		delCount = delCount + 1
+	Next i
+
+	Dim currentFolder
+	Set currentFolder = fso.GetFolder(curPath)
+
+	' Map all folders first
+	If showFolders = True Then
+		Dim currentSubFolder
+
+		For Each currentSubFolder In currentFolder.SubFolders
+			On Error Resume Next
+
+			' Add a new Topic for this item
+			Dim currentSubFolderPath As String
+			currentSubFolderPath = currentSubFolder.Path
+
+			' Creating Topics without names makes them hard to delete :)
+			Set b2 = b1.AddSubTopic ( "" )
+			Call setFolder(b2, currentSubFolderPath)
+			folderCount = folderCount + 1
+			Set b2 = Nothing
+		Next
+
+		Set currentSubFolder = Nothing
+	End If
+
+	If showFiles = True Then
+		Dim currentFile
+
+		For Each currentFile In currentFolder.Files
+			On Error Resume Next
+
+			' Map all files next
+			' Ignore system files, hidden files, and files on the skip list
+			Dim currentFilePath As String
+			currentFilePath = currentFile.Path
+
+			'Hidden = 2, System = 4, Alias = 1024
+			If ((currentFile.Attributes And (2 Or 4 Or 1024)) = 0) Then
+				' Add a new Topic for this item
+				j = 0 ' check this file not on the skip list
+				Do
+					If (UCase(Right(currentFilePath, Len(skipList(j)))) = UCase(skipList(j))) Then
+						Exit Do
+					End If
+					j = j + 1
+					Loop Until skipList(j) = " "
+				If skipList(j) = " " Then ' no match, a normal file
+
+					''#### ERROR ADD TOPIC
+					''#### the following line isn't really necessary since b1list is aleady set. I just wanted to make sure
+					Set b1list = b1.SubTopics( False )
+					''#### the following line doesn't work
+					Set b2 = b1list.Add(" ")
+					''#### this line works
+					'Set b2 = b1.AddSubTopic(" ")
+
+				    Call setFile(b2, currentFilePath)
+					fileCount = fileCount + 1
+					Set b2 = Nothing
+				' Else
+					' MsgBox("Skipping file " + curObj)
+				End If
+			End If
+		Next
+
+		Set currentFile = Nothing
+	End If
+
+	Set currentFolder = Nothing
+
+	' Now map each of the subfolders in turn
+	For i = 1 To b1list.Count ' 0 -inclusive
+		Set b2 = b1list.Item(i)
+		If (fso.FolderExists(b2.Hyperlink.Address)) Then
+			Depth = Depth + 1 ' going down (zero-inclusive count)
+			If Depth < maxDepth Then
+				Call recurMap(b2, b2.Hyperlink.Address, Depth)
+				End If
+			Depth = Depth - 1 ' going back up
+			b2.SetLevelOfDetail(0) ' hide detail in folders
+			End If
+		Set b2 = Nothing
+	Next i
+
+End Sub
+
+
+Function stripPath(ByVal f As String) As String
+' strips the leading pathname off a full filename or foldername
+' assumes that the filename begins after the last backslash
+Dim i As Integer
+
+    If (f <> "") Then
+        ' find the last backslash
+        For i = Len(f) To 1 Step -1
+            If (Mid(f, i, 1) = "\") Then Exit For
+            Next i
+        stripPath = Right(f, Len(f) - i) ' return just the filename
+    Else
+        stripPath = ""
+    End If
+
+End Function
+
+
+Function stripFile(ByVal f As String) As String
+' strips the trailing filename off a full path
+' assumes that the filename begins after the last backslash
+
+stripFile = Left(f, (Len(f) - Len(stripPath(f)))) ' take trailing filename off
+
+End Function
+
+
+Sub setFile(ByVal bR As Topic, ByVal pathName As String)
+	' sets file description with given pathName on Topic bR
+
+	pathName = Trim(pathName)
+	bR.Text = filePrefix + stripPath(pathName)
+	bR.CreateHyperlink( pathName )
+
+End Sub
+
+
+Sub setFolder(ByVal bR As Topic, ByVal pathName As String)
+	' sets folder description with given pathName on Topic bR
+	' First remove any trailing backslash
+	pathName = Trim(pathName)
+	If Right(pathName, 1) = "\" Then
+		pathName = Left(pathName, Len(pathName) - 1)
+	End If
+
+	bR.Text = folderPrefix + stripPath(pathName)
+	bR.CreateHyperlink( pathName )
+
+End Sub
+

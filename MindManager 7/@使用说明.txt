@@ -1,0 +1,21 @@
+
+       MindManager 7.1.394 简体中文绿色注册版
+————————————————
+      使用前首先要运行绿化补丁 "@Install_绿化.exe"，主程序为 "MindManager.exe"；需要说明的是，绿色版 MindManager 没有安装PDF虚拟打印机，需要的请自行安装，安装程序为压缩包里的 "PDFX3SA_sm.exe"，或安装其他的虚拟打印机，我推荐安装 "Foxit PDF Creator"，它的质量还是挺高的。由于测试不尽安全，绿化版 MindManager 可能会有这有那的问题，欢迎你的反馈，一起完善此绿色版！
+
+      这个绿色版的使用前提是必须正确安装了以下三个组件：
+
+      1、Microsoft .NET Framework 2.0
+      下载地址：http://www.microsoft.com/downloads/details.aspx?FamilyID=0856EACB-4362-4B0D-8EDD-AAB15C5E04F5&displaylang=zh-cn；
+      2、 Visual C++ 2005运行库
+      下载地址：http://www.microsoft.com/downloads/details.aspx?displaylang=zh-cn&FamilyID=200b2fd9-ae1a-4a14-984d-389c36f85647
+
+      3. Microsoft Core XML Services (MSXML) 6.0：
+下载地址：http://www.microsoft.com/downloads/details.aspx?displaylang=zh-cn&FamilyID=d21c292c-368b-4ce1-9dab-3e9827b70604
+
+      很早之前 dasoulong 就发邮件问我能不能做一个绿色版的MindManger，当时下载一看，发现需要安装 .Net Framework 2.0，当时就有点不想做，毕竟从来没有绿化过.Net Framework相关的程序，但还是下载尝试绿化下，难度不小，断断续续研究了下，后来发现了jeting用ThinApp封装的单文件免安装的MindManager(见这里：http://jeting.blogbus.com/logs/6064652.html)，由于现在对ThinApp封装的单文件软件不是很看好，主要是单文件软件的兼容性问题，因此决心好好绿化下，又做了几天，绿色版MindManger也越来越成熟了。
+
+      MindManager 是一个创造、管理和交流思想的通用标准，其可视化的绘图软件有着直观、友好的用户界面和丰富的功能，这将帮助您有序地组织您的思维、资源和项目进程。MindManager 也是一个易于使用的项目管理软件，能很好提高项目组的工作效率和小组成员之间的协作性。它作为一个组织资源和管理项目的方法，可从脑图的核心分枝派生出各种关联的想法和信息。
+————————————————
+      黯然过客为您绿化，请访问我的博客：http://www.portablesoft.cn/
+      如有问题请截图反馈至我的邮箱： portablebeta@gmail.com

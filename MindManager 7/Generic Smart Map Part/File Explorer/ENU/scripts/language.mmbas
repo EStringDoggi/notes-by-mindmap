@@ -1,0 +1,13 @@
+Attribute VB_Name = "ModuleName"
+' Language file for ...
+' Copyright Mindjet LLC 2002-2007  All Rights Reserved
+' ENGLISH LANGUAGE FILE
+
+'Description
+'===========
+Public Const locDescription = "File Explorer"
+
+'Refresh
+'=======
+
+Public Const locSaveDocument = "Please save document before using File Explorer map part!"

@@ -1,0 +1,355 @@
+<html>
+
+    <head>
+    
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css\oob.css">
+        
+    </head>
+    
+    <body>
+    
+        <script language=javascript>
+            var page = new Array();
+        </script>
+    
+        <script language=javascript src="js\oobGlobalFrameContent.js"></script>
+        <script language="javascript">
+        
+            var contentFrame = parent.frames("ContentFrame");
+            var Application = external;
+            
+            try
+            {            
+                Application.visible = true;
+                
+                if(Application.GetTrialExpired() == false)
+                {
+                    var mmDoc = Application.AllDocuments.Add(true);
+                    var mmDocGuid = mmDoc.Guid;
+                    //var Shell = new ActiveXObject("Shell.Application");
+                    
+                    //TODO - can't figure out how to do collection type objects (like AllSubTopics) - could be syntax issue
+                    //for now, just using global variables which are set when the object (usually topic) created
+                    var adminTopic = 0;
+                    var dateTopic = 0;
+                    var dateTextTopic = 0;      //the last (now, first) thing added in each function is used as a flag to indicate if this function has been done or not
+                                                //i.e, whether pressing "next" does some stuff or just goes to next page (if user went back to review, don't
+                                                //want to do some things twice
+                                                
+                                                //further note, this needs to be initialized to something for call to IsValid to work, and JS does not appear
+                                                //to work checking for a false value - update - what is actually occurring is if the call fails, false is returned - 
+                                                //useful if the variable hasn't been set yet (i.e, is not a topic)
+                    var attendeesTopic = 0;
+                    var leaderTopic = 0;
+                    var leaderTextTopic = 0;
+                    var agendaTopic = 0;
+                    
+                    var currentPage = 0;
+                    var tabVisible = 0;         //for checking whether a task pane tab should be set to visible or not
+                    
+                    for (var i = 1; i <= Application.TaskPanes.Count; i++)
+                    {
+                        tabVisible = Application.TaskPanes.Item(i).GetTabVisible();
+                    
+                        Application.TaskPanes.Item(i).Visible = false;
+                        
+                        if (tabVisible == true)
+                        {
+                            Application.TaskPanes.Item(i).TabVisible = true;
+                        }
+                    }
+                    
+                    Application.BrowserDialog.UpdatePosition(mmDoc.CentralTopic);
+                    Application.BrowserDialog.Title = page.title;
+                    
+                    //ENU window size
+                    Application.BrowserDialog.Width = 336;
+                    Application.BrowserDialog.Height = 455;
+                    
+                    Application.BrowserDialog.IsVisible = true;
+                    
+                    function RenameCentralTopic(text)
+                    {
+                        if (CheckForTutorialMap())
+                        {
+                            try
+                            {
+                                //note - page is loaded with default text - defaults from global frame content file only used in the case of user
+                                //actually deleting text from text box and then not replacing it...this goes for all defaults used on this page
+                                if (!text || text == "")
+                                {
+                                    text = page.defaultMeetingName;    
+                                }
+                                
+                                mmDoc.CentralTopic.Text = text;
+                                contentFrame.location="oobMeetingDate.htm";
+                            }
+                            
+                            catch(error)
+                            {
+                                alert("Error in RenameCentralTopic()");
+                            }
+                        }
+                        
+                        else
+                        {
+                            contentFrame.location = "oobDocClosedError.htm";    
+                        }
+                    }
+                    
+                    //note, function named after what user just did in tutorial - actually 
+                    //does a lot more...
+                    function AddMeetingDate(text)
+                    {
+                        if (CheckForTutorialMap())
+                        {
+                            try
+                            {
+                                if (adminTopic.IsValid)
+                                {
+                                    if (dateTextTopic.IsValid)
+                                    {
+                                        if (!text || text == "")
+                                        {
+                                            var date = new Date();
+                                            text = date.toLocaleDateString();
+                                        }
+                                        
+                                        dateTextTopic.Text = text;
+                                    }
+                                }
+                                
+                                else
+                                {
+                                    if (!text || text == "")
+                                    {
+                                        var date = new Date();
+                                        text = date.toLocaleDateString();    
+                                    }
+                                    
+                                    adminTopic = mmDoc.CentralTopic.AddSubtopic(page.adminTopicName);
+                                    //TODO - kludge warning - integer value used for mmStockIconHouse - can't figure out how to get to enum value by name
+                                    adminTopic.AllIcons.AddStockIcon(13);
+                                    
+                                    dateTopic = adminTopic.AddSubtopic(page.dateTopicName);
+                                    dateTopic.AllIcons.AddStockIcon(8);
+                                    
+                                    dateTextTopic = dateTopic.AddSubtopic(text);
+                                    
+                                    Application.BrowserDialog.UpdatePosition(dateTextTopic);
+                                    
+                                    mmDoc.Selection.RemoveAll();
+                                    mmDoc.Selection.Add(dateTextTopic);                        
+                                }
+                                
+                                contentFrame.location="oobLeaderName.htm";
+                            }
+                            
+                            catch(error)
+                            {
+                                alert("Error in AddMeetingDate()");
+                            }
+                        }
+                        
+                        else
+                        {
+                            contentFrame.location = "oobDocClosedError.htm";    
+                        }
+                    }
+
+                    function AddLeader(text)
+                    {
+                        if (CheckForTutorialMap())
+                        {
+                            try
+                            {
+                                if (attendeesTopic.IsValid)
+                                {
+                                    if (leaderTopic.IsValid)
+                                    {
+                                        if (!text || text == "")
+                                        {
+                                            text = page.defaultLeaderName;
+                                        }
+                                        
+                                        leaderTopic.Text = text;
+                                    }
+                                }
+                                
+                                else
+                                {
+                                    if (!text || text == "")
+                                    {
+                                        text = page.defaultLeaderName;    
+                                    }
+                                    
+                                    if(adminTopic.IsValid)
+                                    {
+                                        attendeesTopic = adminTopic.AddSubtopic(page.attendeesTopicName);
+                                        attendeesTopic.AllIcons.AddStockIcon(32);
+                                        
+                                        leaderTopic = attendeesTopic.AddSubtopic(text);
+                                        leaderTextTopic = leaderTopic.AddSubtopic(page.leaderTopicName);
+                                        
+                                        Application.BrowserDialog.UpdatePosition(leaderTextTopic);
+                                        
+                                        mmDoc.Selection.RemoveAll();
+                                        mmDoc.Selection.Add(leaderTextTopic);
+                                    }
+                                }
+                                
+                                contentFrame.location="oobAttendees.htm";
+                            }
+                            
+                            catch(error)
+                            {
+                                alert("Error in AddLeader()");
+                            }
+                        }
+                        
+                        else
+                        {
+                            contentFrame.location = "oobDocClosedError.htm";    
+                        }
+                    }
+
+                    function AddAttendees(attendee1, attendee2, attendee3)
+                    {
+                        if (CheckForTutorialMap())
+                        {
+                            try
+                            {
+                                if (attendeesTopic.IsValid)
+                                {
+                                    mmDoc.Selection.RemoveAll();
+                                    
+                                    if (attendee1 != "")
+                                    {
+                                        var attendee1Topic = attendeesTopic.AddSubtopic(attendee1);
+                                        Application.BrowserDialog.UpdatePosition(attendee1Topic);
+                                        mmDoc.Selection.Add(attendee1Topic);
+                                    }
+                                    
+                                    if (attendee2 != "")
+                                    {
+                                        var attendee2Topic = attendeesTopic.AddSubtopic(attendee2);
+                                        Application.BrowserDialog.UpdatePosition(attendee2Topic);
+                                        mmDoc.Selection.Add(attendee2Topic);
+                                    }
+                                    
+                                    if (attendee3 != "")
+                                    {
+                                        var attendee3Topic = attendeesTopic.AddSubtopic(attendee3);
+                                        Application.BrowserDialog.UpdatePosition(attendee3Topic);
+                                        mmDoc.Selection.Add(attendee3Topic);
+                                    }
+                                }
+                                
+                                AddAgendaTopic();
+                                contentFrame.location = "oobCreateAgenda.htm";
+                            }
+                            
+                            catch(error)
+                            {
+                                alert("Error in AddAttendees()");
+                            }
+                        }    
+                        
+                        else
+                        {
+                            contentFrame.location = "oobDocClosedError.htm";    
+                        }
+                    }
+                    
+                    function AddAgendaTopic()
+                    {
+                        try
+                        {
+                            if (agendaTopic.IsValid)
+                            {
+                            }
+                            
+                            else
+                            {
+                                agendaTopic = mmDoc.CentralTopic.AddSubtopic(page.agendaTopicName);
+                                //TODO - kludge warning - integer value used for icon - can't figure out how to get to enum value by name
+                                agendaTopic.AllIcons.AddStockIcon(63);
+                                
+                                Application.BrowserDialog.UpdatePosition(agendaTopic);
+                            }
+                        }
+                        
+                        catch(error)
+                        {
+                            alert("Error in AddAgendaTopic()");
+                        }    
+                    }
+                    
+                    function SetFocusOnMainWindow()
+                    {
+                        alert("Disfunctional function - should not have been called");
+                    
+                        //var handle = mmDoc.Window.hWnd;
+                        //alert(Shell.ShellExecute("SetFocus(handle)"));
+                    }
+                    
+                    function OpenLearningCenter()
+                    {
+                        for (var i = 1; i <= Application.TaskPanes.Count; i++)
+                        {
+                            if (Application.TaskPanes.Item(i).Type == 8)
+                            {
+                                Application.TaskPanes.Item(i).Visible = true;
+                            }
+                        }
+                    }
+                    
+                    function Close()
+                    {
+                        Application.BrowserDialog.IsVisible = false;
+                    }
+                    
+                    function CheckForTutorialMap()
+                    {
+                        if (Application.AllDocuments.Count > 0)
+                        {
+                            if (Application.ActiveDocument.Guid == mmDocGuid)
+                            {
+                                return true;
+                            }
+                            
+                            else
+                            {
+                                for (var i = 1; i <= Application.AllDocuments.Count; i++)
+                                {
+                                    if (Application.AllDocuments.Item(i).Guid == mmDocGuid)
+                                    {
+                                        mmDoc.Activate();
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        return false;          
+                    }
+                }
+                
+                else
+                {
+                    contentFrame.location = "oobTrialExpiredError.htm"
+                }
+            }
+            
+            catch(error)
+            {
+                alert("There was a problem opening the Interactive Quick Start.\n\nYou can try again using the Learning Center in the Tools tab.");
+            }            
+
+        </script>
+        
+    </body>
+        
+</html>

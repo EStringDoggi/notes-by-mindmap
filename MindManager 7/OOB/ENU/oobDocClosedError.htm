@@ -1,0 +1,37 @@
+<html>
+
+    <head>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css\oob.css">
+        
+        <script language=javascript>
+            var buttonText = new Array();
+            var page = new Array();
+            var contentFrame = parent.frames("ContentFrame");
+            var globalFrame = parent.frames("GlobalFrame");
+        </script>
+        
+        <script language=javascript src="js\oobLocalizedContent.js"></script>
+        
+    </head>
+    
+    <body>
+    
+        <h1>Sorry...</h1>
+        <p>The map you were using is no longer available. Start again with a new map?</p>
+    
+	    <div id="buttons">
+            <input id="restart" type="button" value="" onClick="parent.location='oobGlobalPage.htm'">
+	        <input id="closeButton" type="button" value="" onClick="globalFrame.Close()">
+	    </div>
+	    
+	    <script language=javascript>
+            restart.value = buttonText.restart;
+            closeButton.value = buttonText.closeButton;
+            restart.focus();                
+        </script>
+    
+    </body>
+
+</html>

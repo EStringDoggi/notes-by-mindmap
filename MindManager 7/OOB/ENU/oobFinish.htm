@@ -1,0 +1,42 @@
+<html>
+
+    <head>
+
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css\oob.css">
+        
+        <script language=javascript>
+            var page = new Array();
+            var buttonText = new Array();
+            var contentFrame = parent.frames("ContentFrame");
+            var globalFrame = parent.frames("GlobalFrame");
+        </script>
+        
+        <script language=javascript src="js\oobLocalizedContent.js"></script>
+        
+    </head>
+    
+    <body>
+    
+        <h1>Congratulations!</h1>
+        <p>You've just created a map that you can use every time you plan and manage a meeting.</p>
+        <p> You can also find more resources at <a href="http://www.mindjet.com" target="_blank">www.mindjet.com</a>, including support forums, additional map templates, an online store and more. We hope you enjoy using MindManager!</p> 
+	    
+	    <div id="buttons">
+            <input id="back" type="button" accesskey="b" value="" onClick=history.back()>
+	    </div>
+	    
+	    <div id="closeButtonLocation">
+	        <input id="closeButton" type="button" accesskey="c" value="" onclick="globalFrame.Close()">
+	    </div>
+	    
+	    <script language=javascript>
+            back.value = buttonText.back;
+            closeButton.value = buttonText.closeButton;
+            back.focus();
+        </script>
+    
+    </body>
+
+</html>

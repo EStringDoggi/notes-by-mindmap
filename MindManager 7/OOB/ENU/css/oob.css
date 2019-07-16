@@ -1,0 +1,13 @@
+body { background-color: white }
+p { font-family:sans-serif; font-size:10pt }
+b { font-weight:bold }
+h1 { font-family:Sans-Serif; font-size:13pt; color:#6699FF }
+h2 { font-family:Sans-Serif; font-size:10pt; font-weight:bold }
+li { font-family:Sans-Serif; font-size:10pt }
+
+#buttons { position:absolute; bottom:.5em; left:.5em }
+#closeButtonLocation { position:absolute; bottom:.5em; right:.5em }
+
+span.key { font-weight:bold }
+span.ctrl { font-weight:bold }
+span.input { }

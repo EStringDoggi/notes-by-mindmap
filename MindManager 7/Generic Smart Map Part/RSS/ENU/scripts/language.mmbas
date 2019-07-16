@@ -1,0 +1,25 @@
+Attribute VB_Name = "ModuleName"
+' Language file for ...
+' Copyright Mindjet LLC 2002-2007  All Rights Reserved
+' ENGLISH LANGUAGE FILE
+
+'Description
+'===========
+Public Const locDescription = "RSS Internet News Ticker." 
+
+'Refresh
+'=======
+Public Const locCouldNotLoadXslt = "Could not load transformation" ' comment to explain what this is here
+Public Const locCouldNotLoadRss = "Could not load RSS" ' comment to explain what this is here
+
+'Create map part macro
+Public Const ERR_INVALID_RSS_NEWS = "Is not a valid RSS News feed."
+Public Const DIALOG_TITLE = "Create a News Feed Smart Map Part"
+Public Const ENTER_URL = "&Enter the URL of the RSS or RDF news feed:"
+Public Const IMAGE_LOCATION = "Image Location"
+Public Const Left = "&Left"
+Public Const Top = "&Top"
+Public Const Right = "&Right"
+Public Const Bottom = "&Bottom"
+Public Const IMAGE_DESCRIPTION = "If the news feed has an image, you can specify its location in the map part when it is placed on the map."
+Public Const NEWS_FEEDS = "News Feeds"

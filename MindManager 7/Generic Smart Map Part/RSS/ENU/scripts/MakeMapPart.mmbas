@@ -1,0 +1,348 @@
+' Make a RSS Feed smart map part from a RSS URL.
+' Copyright (c) 2003-2007 Mindjet LLC
+
+'#Uses "Language.MMBas"
+
+Option Explicit
+
+Private Declare Function URLDownloadToFile Lib "urlmon" Alias _
+	"URLDownloadToFileA" (ByVal pCaller As Long, ByVal szURL As String, ByVal _
+		szFileName As String, ByVal dwReserved As Long, ByVal lpfnCB As Long) As Long
+
+
+' Select a topic that has a URL as its text and start this macro
+Sub Main
+	MakeMapPart
+End Sub
+
+' Make a Smart Map Part from the selected URL
+Sub MakeMapPart
+	Dim URL As String
+
+	URL = GetURL()
+
+	MakeMapPartFromURL(URL)
+End Sub
+
+' Make a Smart Map Part from a URL
+Sub MakeMapPartFromURL (URL As String)
+
+	Dim aProperties
+
+	' -- 1)
+	' Show Dialog
+	aProperties = GetProperties(URL)
+
+	' Stop if user escaped dialog
+	If IsNull(aProperties) Then
+		Exit Sub
+	End If
+
+	URL = aProperties.URL
+	Dim imageLocation As String
+	imageLocation = GetImageLocation(aProperties)
+
+	' -- 2)
+	' Load Xml document
+	Dim xmldoc As Object
+	On Error Resume Next
+
+	Dim xmlUrl As String
+	xmlUrl = Replace(URL, "feed://", "http://")
+	xmlUrl = Replace(xmlUrl, "feed:\\", "http://")
+
+	Debug.Print xmlUrl
+	Set xmldoc = LoadUrl(xmlUrl)
+
+	If xmldoc Is Nothing Then
+		MsgBox(URL + vbCrLf + ERR_INVALID_RSS_NEWS)
+		Exit Sub
+	End If
+
+
+	' -- 3)
+	' Load transformation file
+	Dim xsldoc
+	Set xsldoc = CreateObject("Msxml2.FreeThreadedDOMDocument.4.0")
+	xsldoc.async = False
+
+	Dim xsltPath As String
+    xsltPath = MacroDir + "\FromRss.xslt"
+
+ 	If Not xsldoc.Load(xsltPath) Then
+ 		MsgBox(locCouldNotLoadXslt + vbCrLf + xsltPath)
+ 		Exit Sub
+ 	End If
+
+ 	' -- 4)
+ 	' Transform xml file to see if xml is valid or not.
+ 	Dim xml As String
+	xml = Transform(xmldoc, xsldoc)
+
+	If InStr(xml, "Topic") = 0 Then
+		MsgBox(URL + vbCrLf + ERR_INVALID_RSS_NEWS)
+		Exit Sub
+	End If
+
+	' Retrieve title from xml
+	Dim channelTitle As String
+	channelTitle = GetChannelTitle(xmldoc)
+
+	Dim imageURL As String
+	imageURL = GetImageURL(xmldoc)
+	imageURL = DownloadImage(imageURL)
+
+	Dim templatename As String
+	templatename = MacroDir + "\News Template.mmap"
+
+	Dim aDocument As Document
+	Set aDocument = Documents.AddFromTemplate(templatename, "", False)
+
+	' The Map part is always the first subtopic of the central topic
+	Dim aTopic As Topic
+	Set aTopic = aDocument.CentralTopic.SubTopics.Item(1)
+	aTopic.Text = channelTitle
+
+	If Not imageURL="" Then
+		aTopic.CreateImage(imageURL)
+		Kill(imageURL)
+	End If
+
+	channelTitle = MakeValidFilename(channelTitle)
+	aTopic.FillColor.SetARGB(255,255,255,255)
+	SetRSSAttributes aTopic, URL, imageLocation
+
+	Dim filename As String
+	filename = Path(mmDirectoryMapParts) + NEWS_FEEDS + "\" + channelTitle + ".mmmp"
+
+	Debug.Print("Saving " + filename)
+  	aDocument.SaveAs(filename)
+  	aDocument.Close()
+
+	Resave(filename)
+End Sub
+
+' Set the GSMP custom attributes
+Sub SetRSSAttributes(aTopic, URL, imageLocation)
+	Dim aAttributes As CustomAttributes
+
+	Set aAttributes = aTopic.Attributes("http://schemas.mindjet.com/MindManager/GSMP/2003")
+
+  	aAttributes.SetAttributeValue("RssUrl", 			URL)
+	aAttributes.SetAttributeValue("ProgId", 			"Mindjet.Rss.Smp.1")
+	aAttributes.SetAttributeValue("FriendlyName", 		"RSS")
+	aAttributes.SetAttributeValue("InitTopicCommand", 	"Refresh")
+	aAttributes.SetAttributeValue("RefreshCommand", 	"Refresh")
+	aAttributes.SetAttributeValue("Command2", 			"Description")
+	aAttributes.SetAttributeValue("CommandEnabled2",	"")
+	aAttributes.SetAttributeValue("RefreshAllEnabled",  "")
+	aAttributes.SetAttributeValue("ImageLocation",      imageLocation)
+End Sub
+
+' Transform the xml document with the xsl document and an image location parameter
+Function Transform(xmldoc, xsldoc)
+
+	Dim template As Object
+
+	Set template=CreateObject("Msxml2.XSLTemplate.4.0")
+
+	template.stylesheet = xsldoc.documentElement
+
+	Dim processor As Object
+
+	Set processor = template.createProcessor()
+
+	processor.Input = xmldoc
+	processor.AddParameter("imageLocation", "")
+
+	processor.transform()
+
+	Transform = processor.output
+End Function
+
+' Get the title of the channel from the RSS feed
+Function GetChannelTitle(xmldoc)
+	Dim Title
+
+	Set Title = xmldoc.SelectSingleNode("rss/channel/title")
+
+	If Title Is Nothing Then
+		Set Title = xmldoc.SelectSingleNode("rdf:RDF/rss:channel/rss:title")
+	End If
+
+	If Title Is Nothing Then
+		GetChannelTitle = ""
+	Else
+	    GetChannelTitle = Title.Text
+	End If
+End Function
+
+
+'Resave with correct thumbnail
+Sub Resave(filename As String)
+	Dim aDocument As Document
+
+  	Set aDocument = Documents.Open(filename, "", False)
+
+  	aDocument.Save()
+
+  	aDocument.Close()
+End Sub
+
+
+' Return an XML DOM Document that has loaded the URL
+Function LoadUrl(URL As String)
+	Dim xmldoc
+	Set xmldoc = CreateObject("Msxml2.FreeThreadedDOMDocument.4.0")
+
+	xmldoc.async = False
+
+	If Not xmldoc.Load(URL) Then
+		LoadUrl = Null
+	Else
+		xmldoc.SetProperty("SelectionNamespaces", "xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rss='http://purl.org/rss/1.0/'")
+		Set LoadUrl = xmldoc
+	End If
+End Function
+
+' Make a filename valid
+Function MakeValidFilename(filename)
+	filename = Replace$(filename,"#","")
+	filename = Replace$(filename,"*","")
+	filename = Replace$(filename,"%","")
+	filename = Replace$(filename,";","-")
+	filename = Replace$(filename,"/","-")
+	filename = Replace$(filename,"\","-")
+	filename = Replace$(filename,":","-")
+	filename = Replace$(filename,"|","-")
+	filename = Replace$(filename,"<","-")
+	filename = Replace$(filename,">","-")
+
+	MakeValidFilename = filename
+End Function
+
+' Download a temporary image
+Function DownloadImage(URL)
+
+	If URL = "" Then
+		DownloadImage = ""
+		Exit Function
+	End If
+	Dim fso
+
+	Set fso = CreateObject("Scripting.FileSystemObject")
+
+	Dim ext As String
+
+	ext = fso.GetExtensionName(URL)
+
+	Dim localfile As String
+
+	Dim wshell
+
+	Set wshell = CreateObject("WScript.Shell")
+
+	localfile = wshell.ExpandEnvironmentStrings("%TEMP%\image.") + ext
+
+	URLDownloadToFile(0, URL, localfile, 0, 0)
+
+	DownloadImage = localfile
+
+End Function
+
+' Get the image URL from the RSS feed
+Function GetImageURL(xmldoc) As String
+ 	Dim imageURL
+
+ 	Set imageURL = xmldoc.selectSingleNode("/rss/channel/image/url")
+
+	If imageURL Is Nothing Then
+ 		Set imageURL = xmldoc.selectSingleNode("rdf:RDF/rss:channel/rss:image/rss:url")
+	End If
+
+ 	If imageURL Is Nothing Then
+ 		Set imageURL = xmldoc.selectSingleNode("rdf:RDF/rss:image/rss:url")
+ 	End If
+
+ 	If imageURL Is Nothing Then
+		GetImageURL = ""
+		Exit Function
+ 	End If
+
+ 	GetImageURL = imageURL.Text
+End Function
+
+' Show the properties dialog
+Function GetProperties(URL)
+	Begin Dialog UserDialog 460,163,DIALOG_TITLE ' %GRID:10,7,0,0
+		Text 16,11,426,13,ENTER_URL,.Text2
+		TextBox 16,28,436,18,.URL
+		GroupBox 16,53,436,79,IMAGE_LOCATION,.GroupBox1
+		OptionGroup .ImageLocation
+			OptionButton 24,89,102,15,Left '0
+			OptionButton 80,69,107,15,Top '1
+			OptionButton 142,89,87,15,Right '2
+			OptionButton 80,106,104,15,Bottom '3
+		Text 242,67,196,54,IMAGE_DESCRIPTION,.Text3
+		OKButton 218,138,107,22
+		CancelButton 332,138,115,22
+	End Dialog
+
+	Dim dlg As UserDialog
+
+	dlg.URL = URL
+
+	If Dialog(dlg) = -1 Then
+		GetProperties = dlg
+	Else
+		GetProperties = Null
+	End If
+End Function
+
+' Get the URL from the text of the primary selection
+Function GetURL()
+	Dim URL As String
+
+	If Documents.Count = 0 Then
+		GetURL = ""
+		Exit Function
+	End If
+
+	Dim aSelection As Selection
+
+	Set aSelection = ActiveDocument.Selection
+
+	If aSelection.IsEmpty Then
+		GetURL = ""
+		Exit Function
+	End If
+
+	Dim aTopic As Topic
+
+	Set aTopic = aSelection.PrimaryTopic
+
+	Dim aText As String
+
+	GetURL = aTopic.Text
+End Function
+
+
+' Get the image location from the properties dialog
+Function GetImageLocation(aProperties)
+	Dim imageLocation
+	imageLocation = "TextRightImageLeft"
+
+	Select Case aProperties.ImageLocation
+		Case 0 ' Left
+			imageLocation = "TextRightImageLeft"
+		Case 1 ' Top
+			imageLocation = "TextBottomImageTop"
+		Case 2 ' Right
+			imageLocation = "TextLeftImageRight"
+		Case 3 ' Bottom
+			imageLocation = "TextTopImageBottom"
+	End Select
+
+	GetImageLocation = imageLocation
+
+End Function

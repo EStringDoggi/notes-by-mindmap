@@ -1,0 +1,45 @@
+<html>
+
+    <head>
+
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css\oob.css">
+        
+        <script language=javascript>
+            var page = new Array();
+            var buttonText = new Array();
+            var contentFrame = parent.frames("ContentFrame");
+            var globalFrame = parent.frames("GlobalFrame");
+        </script>
+        
+        <script language=javascript src="js\oobLocalizedContent.js"></script>
+        
+    </head>
+    
+    <body>
+    
+        <h1>Task Information</h1>
+        <p>Adding and tracking project details is easy in MindManager.</p>
+        <p>You can assign a team resource to resolve the part shortage issue.</p>
+        <h2>To assign a resource:</h2>
+        <ol>
+            <li>Click the <span class="ctrl">Task Info</span> <img src="images\taskinfo.png" /> button in the Map Markers group of the Home tab. Notice the Task Info task pane appears on the right.</li>
+            <li>Type a team member's name in the <span class="ctrl">Resources</span> field of the Task Info task pane.</li>
+            <li>A text marker is added to the Part Shortage topic with the team member's name in it.</li>
+        </ol>
+	    
+	    <div id="buttons">
+            <input id="back" type="button" accesskey="b" value="" onClick=history.back()>
+	        <input id="next" type="button" accesskey="n" value="" onClick="contentFrame.location='oobTaskInfo2.htm'">
+	    </div>
+	    
+	    <script language=javascript>
+            back.value = buttonText.back;
+            next.value = buttonText.next;
+            next.focus();                
+        </script>
+    
+    </body>
+
+</html>
